@@ -1,0 +1,233 @@
+package syst
+public
+	
+	with Data_Model;
+	
+	data GateState
+    properties
+        Data_Model::Enumerators => ("Closed", "Open");
+	end GateState;
+	
+	data MotorState
+    properties
+        Data_Model::Enumerators => ("On", "Off");
+	end MotorState;
+	
+	system GateSystem
+	end GateSystem;
+	
+	--typy danych 
+
+	system implementation GateSystem.with_devices
+		subcomponents
+			this_gateController: device GateController;
+			this_motor: device Motor;
+			this_remoteControl: device RemoteControl;
+			this_sensor: device Sensor;
+			this_safetyMechanism: device SafetyMechanism;
+			this_lockingMechanism: device LockingMechanism;
+			this_controlPanel: device ControlPanel;
+			this_camera: device Camera;
+			
+			this_controller: process Controller.with_threads;
+            this_utilities: process Utilities.with_threads;
+            
+            this_bus: bus HWConnection.Impl;
+            this_processor: processor MainProcessor.Impl;
+		connections
+			sensor_conn: port this_sensor.sensorPort -> this_lockingMechanism.lockingMechanismPort;
+			remoteCtrl_conn: port this_remoteControl.remoteCtrlPort -> this_gateController.gateCtrlPort;
+			controlPanel_conn: port this_controlPanel.controlPanelPort -> this_motor.motorPort;
+			camera_conn: port this_camera.cameraPort -> this_safetyMechanism.safetyMechanismPort;
+			
+			bus_gateCtrl: bus access this_bus -> this_gateController.bus_access;
+			bus_motor: bus access this_bus -> this_motor.bus_access;
+			bus_remoteCtrl: bus access this_bus -> this_remoteControl.bus_access;
+			bus_sensor: bus access this_bus -> this_sensor.bus_access;
+			bus_safetyMechanism: bus access this_bus -> this_safetyMechanism.bus_access;
+			bus_lockingMechanism: bus access this_bus -> this_lockingMechanism.bus_access;
+			bus_controlPanel: bus access this_bus -> this_controlPanel.bus_access;
+			bus_camera: bus access this_bus -> this_camera.bus_access;
+			bus_processor: bus access this_bus -> this_processor.bus_access;
+			
+			utilities1conn: port this_utilities.cameraPort -> this_controller.lockingMechanismPort;
+			utilities2conn: port this_utilities.controlPanelPort -> this_controller.gateControllerPort;
+			controller1conn: port this_controller.sensorPort -> this_utilities.safetyMechanismPort;
+			controller2conn: port this_controller.remoteCtrlPort -> this_utilities.motorPort;
+			
+	end GateSystem.with_devices;
+	
+	process Controller
+		features
+			gateControllerPort: in event port;
+			remoteCtrlPort: out event port;
+			sensorPort: out data port;
+			lockingMechanismPort: in data port;
+	end Controller;
+	
+	process implementation Controller.with_threads
+		subcomponents
+			this_thread_OpenClose: thread OpenCloseThread.Impl;
+			this_thread_ObstacleDetection: thread ObstacleDetectionThread.Impl;
+		connections
+			obstacleDetectionThreadConn1: port gateControllerPort -> this_thread_OpenClose.gateControllerPort;
+			obstacleDetectionThreadConn2: port this_thread_OpenClose.remoteCtrlPort -> remoteCtrlPort;
+			openCloseThreadConn1: port this_thread_ObstacleDetection.sensorPort -> sensorPort;
+			openCloseThreadConn2: port lockingMechanismPort -> this_thread_ObstacleDetection.lockingMechanismPort;
+	end Controller.with_threads;
+	
+	process Utilities
+		features
+			motorPort: in event port;
+			controlPanelPort: out event port;
+			safetyMechanismPort: in data port;
+			cameraPort: out data port;
+	end Utilities;
+	
+	process implementation Utilities.with_threads
+		subcomponents
+			this_thread_Motor: thread MotorThread.Impl;
+			this_thread_VisualControl: thread VisualControlThread.Impl;
+		connections
+			motorThreadConn1: port motorPort -> this_thread_Motor.motorPort;
+			motorThreadConn2: port this_thread_Motor.controlPanelPort -> controlPanelPort;
+			visualControlThread1: port this_thread_VisualControl.cameraPort -> cameraPort;
+			visualControlThread2: port safetyMechanismPort -> this_thread_VisualControl.safetyMechanismPort;
+	end Utilities.with_threads;
+	
+	thread OpenCloseThread
+		features
+			gateControllerPort: in event port;
+			remoteCtrlPort: out event port;
+	end OpenCloseThread;
+	
+	thread implementation OpenCloseThread.Impl
+	end OpenCloseThread.Impl;
+	
+	thread ObstacleDetectionThread
+		features
+			sensorPort: out data port;
+			lockingMechanismPort: in data port;
+	end ObstacleDetectionThread;
+	
+	thread implementation ObstacleDetectionThread.Impl
+	end ObstacleDetectionThread.Impl;
+	
+	thread MotorThread
+		features 
+			motorPort: in event port;
+			controlPanelPort: out event port;
+	end MotorThread;
+	
+	thread implementation MotorThread.Impl
+	end MotorThread.Impl;
+	
+	thread VisualControlThread
+		features
+			safetyMechanismPort: in data port;
+			cameraPort: out data port;
+	end VisualControlThread;
+	
+	thread implementation VisualControlThread.Impl
+	end VisualControlThread.Impl;
+	
+	processor MainProcessor
+		features
+			bus_access: requires bus access HWConnection;
+	end MainProcessor;
+	
+	processor implementation MainProcessor.Impl
+		subcomponents
+			this_ram: memory Ram;
+	end MainProcessor.Impl;
+	
+	memory Ram
+	end Ram;
+	
+	bus HWConnection
+	end HWConnection;
+	
+	bus implementation HWConnection.Impl
+	end HWConnection.Impl;
+
+	-- Definicja sterownika bramy
+	device GateController
+		features
+			gateCtrlPort: in event port;
+			bus_access: requires bus access HWConnection;
+	end GateController;
+
+	device implementation GateController.Impl
+	end GateController.Impl;
+
+	-- Definicja silnika bramy
+	device Motor
+		features
+			motorPort: in event port;
+			bus_access: requires bus access HWConnection;
+	end Motor;
+
+	device implementation Motor.Impl
+	end Motor.Impl;
+
+	-- Definicja zdalnego sterowania bramy pilotem
+	device RemoteControl
+		features
+			remoteCtrlPort: out event port;
+			bus_access: requires bus access HWConnection;
+	end RemoteControl;
+	
+	device implementation RemoteControl.Impl
+	end RemoteControl.Impl;
+	
+	-- Definicja czujnika ruchu w bramie
+	device Sensor
+		features
+			sensorPort: out data port;
+			bus_access: requires bus access HWConnection;
+	end Sensor;
+
+	device implementation Sensor.Impl
+	end Sensor.Impl;
+
+	-- Definicja mechanizmu bezpieczeństwa bramy
+	device SafetyMechanism
+		features
+			safetyMechanismPort: in data port;
+			bus_access: requires bus access HWConnection;
+	end SafetyMechanism;
+
+	device implementation SafetyMechanism.Impl
+	end SafetyMechanism.Impl;
+
+	-- Definicja mechanizmu zamykającego brame
+	device LockingMechanism
+		features
+			lockingMechanismPort: in data port;
+			bus_access: requires bus access HWConnection;
+	end LockingMechanism;
+
+	device implementation LockingMechanism.Impl
+	end LockingMechanism.Impl;
+
+	-- Definicja panelu sterowania bramy
+	device ControlPanel
+		features
+			controlPanelPort: out event port;
+			bus_access: requires bus access HWConnection;
+	end ControlPanel;
+
+	device implementation ControlPanel.Impl
+	end ControlPanel.Impl;
+	
+	-- Definicja kamery obserwujacej brame
+	device Camera
+		features
+			cameraPort: out data port;
+			bus_access: requires bus access HWConnection;
+	end Camera;
+
+	device implementation Camera.Impl
+	end Camera.Impl;
+
+end syst;
